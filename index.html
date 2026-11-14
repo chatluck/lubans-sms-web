@@ -84,7 +84,7 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const LS = "scorehub-autoreg";
-const MAX_TRY = 6;
+const MAX_TRY = 8;
 const DEFAULT_API = "https://scorehub-autoreg.pages.dev";
 
 function log(msg){
@@ -120,14 +120,14 @@ async function once(){
   if(s.replaced && s.replaced.length) log("已释放低质量号段：" + s.replaced.join(", "));
   state("激活号码", "warn");
 
-  await countdown(30);
+  await countdown(20);
 
   log("触发短信发送…");
   const sent = await api("/api/send?phone=" + encodeURIComponent(phone));
   if(sent.status !== "sent"){ log("发码失败：" + (sent.message||"") + "，换号重试"); return null; }
   state("等待验证码", "warn");
 
-  for(let i=0;i<12;i++){
+  for(let i=0;i<10;i++){
     await new Promise(r=>setTimeout(r, 5000));
     const p = await api("/api/poll?phone=" + encodeURIComponent(phone));
     if(p.status === "waiting"){ log("轮询中…（" + (i+1) + "）"); continue; }

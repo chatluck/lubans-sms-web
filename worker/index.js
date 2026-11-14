@@ -191,7 +191,7 @@ async function handlePoll(env, phone, origin) {
     if (isBlocked(msg)) {
       return json({ status: "blocked", message: msg, phone }, 200, origin);
     }
-    await sleep(2500);
+    await sleep(3000);
   }
 
   if (!smsText) return json({ status: "waiting", phone }, 200, origin);
@@ -270,6 +270,18 @@ export default {
           return { http: r.http, code: r.data?.code };
         }));
         return json({ probes: out }, 200, origin);
+      }
+      if (url.pathname === "/api/dev-send") {
+        const identifier = url.searchParams.get("identifier");
+        const type = Number(url.searchParams.get("type") || 1);
+        const r = await scorehub("/auth/verification/send", { method: "POST", body: { identifier, type } });
+        return json({ http: r.http, code: r.data?.code, desc: r.data?.description }, 200, origin);
+      }
+      if (url.pathname === "/api/dev-login") {
+        const phone = url.searchParams.get("phone");
+        const code = url.searchParams.get("code");
+        const r = await scorehub("/auth/login/code", { method: "POST", body: { identifier: phone, code } });
+        return json({ http: r.http, code: r.data?.code, desc: r.data?.description, hasToken: Boolean(r.data?.data?.accessToken) }, 200, origin);
       }
       if (url.pathname === "/api/health") {
         return json({ ok: true, lubans: Boolean(env.LUBANS_APIKEY) }, 200, origin);
