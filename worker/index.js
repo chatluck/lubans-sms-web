@@ -57,7 +57,19 @@ async function lubans(env, endpoint, params) {
   if (!apikey) throw new Error("LUBANS_APIKEY 未配置");
   const qs = new URLSearchParams({ apikey, ...params }).toString();
   const text = await fetchText(LUBANS + endpoint + "?" + qs, {
-    headers: { "User-Agent": UA, "Accept": "application/json" },
+    headers: {
+      "User-Agent": UA,
+      "Accept": "application/json, text/plain, */*",
+      "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+      "Referer": "https://lubansms.com/",
+      "Origin": "https://lubansms.com",
+      "sec-ch-ua": '"Chromium";v="126", "Not:A-Brand";v="24"',
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": '"macOS"',
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+    },
   });
   try {
     return JSON.parse(text);
@@ -121,10 +133,10 @@ function releaseNumber(env, phone) {
   lubans(env, "delKeywordNumber", { phone }).catch(() => {});
 }
 
-async function pickNumber(env, tries = 4) {
+async function pickNumber(env, tries = 2) {
   const rejected = [];
   let lastPhone = null;
-  const deadline = Date.now() + 18000;
+  const deadline = Date.now() + 9000;
   for (let i = 0; i < tries && Date.now() < deadline; i++) {
     const n = await lubans(env, "getKeywordNumber", {});
     if (!n || n.code !== 0 || !n.phone) {
@@ -235,6 +247,30 @@ export default {
     }
 
     try {
+      if (url.pathname === "/api/debug") {
+        const probe = async (label, fn) => {
+          const t0 = Date.now();
+          try {
+            const r = await Promise.race([
+              fn(),
+              new Promise((_, rej) => setTimeout(() => rej(new Error("timeout-8s")), 8000)),
+            ]);
+            return { label, ms: Date.now() - t0, ok: true, value: r };
+          } catch (e) {
+            return { label, ms: Date.now() - t0, ok: false, error: String(e.message || e) };
+          }
+        };
+        const out = [];
+        out.push(await probe("lubans-balance", async () => {
+          const r = await lubans(env, "getBalance", {});
+          return r;
+        }));
+        out.push(await probe("scorehub-send", async () => {
+          const r = await scorehub("/auth/verification/send", { method: "POST", body: { identifier: "13800000000", type: 1 } });
+          return { http: r.http, code: r.data?.code };
+        }));
+        return json({ probes: out }, 200, origin);
+      }
       if (url.pathname === "/api/health") {
         return json({ ok: true, lubans: Boolean(env.LUBANS_APIKEY) }, 200, origin);
       }

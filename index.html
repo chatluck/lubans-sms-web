@@ -85,7 +85,9 @@
 const $ = (id) => document.getElementById(id);
 const LS = "scorehub-autoreg";
 const MAX_TRY = 6;
-const DEFAULT_API = "https://scorehub-autoreg.360qaws360.workers.dev";
+const DEFAULT_API = location.hostname.endsWith(".pages.dev")
+  ? ""
+  : "https://scorehub-autoreg.360qaws360.workers.dev";
 
 function log(msg){
   const t = new Date().toLocaleTimeString();
