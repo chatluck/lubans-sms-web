@@ -122,3 +122,11 @@ Header: X-API-KEY
 ```
 
 实测：取号 `17033115303` → 收码 → 注册 → 密码 `ScpubMDDj46cx`，密码登录返回 code 0。
+
+## 充值入口（2026-11-15）
+
+- 页面余额条右侧有「充值爱接码 ↗」，新窗口打开官方充值页 `https://www.i-sms.app/platform/recharge`（浏览器已登录 i-sms 时可直接微信/支付宝扫码，充值范围 ¥5–20000）。
+- 充值后点「刷新余额」即可看到新余额。
+- 无法内嵌的原因（实测）：
+  - 官方页 `X-Frame-Options: SAMEORIGIN`、`CSP: frame-ancestors 'self'`，iframe 会被浏览器拒绝。
+  - 充值接口 `POST /api/user/recharge` 有请求签名/加密校验（缺签名返回 `ENC_VALIDATION_FAILED`），且需网页登录态而非 API Key，无法由后端代下单。
