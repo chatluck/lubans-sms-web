@@ -1,0 +1,10 @@
+name = "scorehub-autoreg"
+main = "index.js"
+compatibility_date = "2026-01-01"
+
+# 部署前设置密钥（不要写进仓库）：
+#   npx wrangler secret put LUBANS_APIKEY
+#
+# 可选变量：
+# [vars]
+# LUBANS_KEYWORD = "斯氪科技"

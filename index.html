@@ -3,258 +3,219 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>鲁班接码 · 在线工具</title>
+<title>ScoreHub 账号·一键获取</title>
 <style>
   :root{
-    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
-    --text:#e8eaed; --muted:#9aa3b2; --accent:#5b8cff; --ok:#38c172; --warn:#f0a020; --err:#ef4b6d;
+    --bg:#0b0d10; --panel:#14171c; --panel2:#1b1f26; --line:#272c35;
+    --text:#e9ecf1; --muted:#8b94a3; --accent:#6e38f5; --accent2:#8b5cff;
+    --ok:#38c172; --warn:#f0a020; --err:#ef4b6d;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 -apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC","Microsoft YaHei",sans-serif}
-  .wrap{max-width:880px;margin:0 auto;padding:32px 20px 80px}
-  header{display:flex;align-items:baseline;gap:12px;margin-bottom:24px}
-  h1{font-size:20px;margin:0;letter-spacing:.5px}
-  header .sub{color:var(--muted);font-size:12px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
-  .card h2{font-size:13px;color:var(--muted);font-weight:600;margin:0 0 12px;letter-spacing:1px;text-transform:uppercase}
-  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
-  input,select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 11px;font:inherit;outline:none}
-  input:focus,select:focus{border-color:var(--accent)}
-  .row{display:flex;gap:10px;flex-wrap:wrap}
-  .row > *{flex:1 1 160px}
-  button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:10px 16px;font:inherit;cursor:pointer}
-  button.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
-  button:disabled{opacity:.5;cursor:not-allowed}
-  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-  pre{background:#0b0d11;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:12px;max-height:320px;margin:0}
-  .kv{display:grid;grid-template-columns:110px 1fr;gap:6px 12px;font-size:13px}
-  .kv b{color:var(--muted);font-weight:500}
-  .code{font-size:28px;letter-spacing:6px;font-weight:700;color:var(--ok);font-variant-numeric:tabular-nums}
-  .hint{color:var(--muted);font-size:12px;margin-top:8px}
-  .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;border:1px solid var(--line);color:var(--muted)}
-  .tag.ok{color:var(--ok);border-color:rgba(56,193,114,.4)}
-  .tag.err{color:var(--err);border-color:rgba(239,75,109,.4)}
-  .log{font-size:12px;color:var(--muted);white-space:pre-wrap;max-height:160px;overflow:auto}
-  a{color:var(--accent)}
+  body{margin:0;background:radial-gradient(1200px 600px at 50% -200px,#1a1330 0%,var(--bg) 60%);color:var(--text);
+       font:14px/1.65 -apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh}
+  .wrap{max-width:760px;margin:0 auto;padding:48px 20px 80px}
+  header{text-align:center;margin-bottom:28px}
+  h1{margin:0 0 8px;font-size:26px;letter-spacing:.5px}
+  header p{margin:0;color:var(--muted);font-size:13px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:16px}
+  .card h2{font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin:0 0 14px;font-weight:600}
+  label{display:block;font-size:12px;color:var(--muted);margin:4px 0 6px}
+  input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:11px 13px;font:inherit;outline:none}
+  input:focus{border-color:var(--accent)}
+  .main-btn{width:100%;margin-top:8px;padding:18px;border:0;border-radius:14px;cursor:pointer;font:600 16px/1 inherit;
+    color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    box-shadow:0 10px 30px -10px rgba(110,56,245,.8);transition:transform .12s,opacity .2s}
+  .main-btn:hover{transform:translateY(-1px)}
+  .main-btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+  .hint{color:var(--muted);font-size:12px;margin-top:10px;text-align:center}
+  .result{margin-top:16px;display:none}
+  .result.show{display:block}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:var(--panel2);
+       border:1px solid var(--line);border-radius:10px;margin-bottom:10px}
+  .row:last-child{margin-bottom:0}
+  .row .k{color:var(--muted);font-size:12px}
+  .row .v{font:600 15px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
+  .copy{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 10px;
+        font:12px inherit;cursor:pointer;white-space:nowrap}
+  .copy:hover{color:var(--text);border-color:var(--accent)}
+  .log{font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);max-height:180px;overflow:auto;white-space:pre-wrap}
+  .tag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11px;border:1px solid var(--line);color:var(--muted)}
+  .tag.on{color:var(--ok);border-color:rgba(56,193,114,.45)}
+  .tag.err{color:var(--err);border-color:rgba(239,75,109,.45)}
+  .tag.warn{color:var(--warn);border-color:rgba(240,160,32,.45)}
+  .hist{font-size:12px;color:var(--muted)}
+  .hist div{padding:6px 0;border-bottom:1px solid var(--line)}
+  .hist div:last-child{border-bottom:0}
+  .hist b{color:var(--text);font-family:ui-monospace,Menlo,monospace;font-weight:600}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>鲁班接码 · 在线工具</h1>
-    <span class="sub">lubansms.com v2 API · 纯前端</span>
+    <h1>ScoreHub 账号 · 一键获取</h1>
+    <p>点一下，自动取号 → 收码 → 注册 → 设密码 → 返回可用账号</p>
   </header>
 
   <div class="card">
-    <h2>连接</h2>
-    <label>APIKEY（仅存本机 localStorage，不会上传到任何服务器）</label>
-    <input id="apikey" placeholder="粘贴你的 lubansms APIKEY" autocomplete="off" />
-    <label>代理地址（可选：Cloudflare Worker / 自建转发，解决 CORS）</label>
-    <input id="proxy" placeholder="https://your-worker.workers.dev/?url=" autocomplete="off" />
-    <div class="actions">
-      <button id="save">保存设置</button>
-      <button class="ghost" id="bal">查余额</button>
-      <span id="balOut" style="align-self:center"></span>
-    </div>
-    <div class="hint" id="corsHint">浏览器直连 lubansms.com 会被 CORS 拦截；部署同域 Worker 代理后填在上一栏即可正常使用。</div>
+    <h2>后端</h2>
+    <label>Worker 地址（部署 worker/index.js 后填写，如 https://scorehub-autoreg.xxx.workers.dev）</label>
+    <input id="api" placeholder="https://your-worker.workers.dev" />
+    <div class="hint" id="apiState">未配置后端地址</div>
   </div>
 
   <div class="card">
-    <h2>取号</h2>
-    <div class="row">
-      <input id="phoneIn" placeholder="复用号码（留空=随机分配）" autocomplete="off" />
-      <input id="cardType" placeholder="cardType（可选，已弃用）" autocomplete="off" />
-    </div>
-    <div class="actions">
-      <button id="getNum">获取号码</button>
-    </div>
-    <div class="kv" style="margin-top:14px">
-      <b>当前号码</b><span id="curPhone">—</span>
+    <h2>获取账号</h2>
+    <button class="main-btn" id="go">获取账号</button>
+    <div class="hint" id="tip">手机号 + 密码会自动生成，约 20–90 秒</div>
+
+    <div class="result" id="result">
+      <div class="row"><div><div class="k">账号（手机号）</div><div class="v" id="rPhone">—</div></div><button class="copy" data-copy="rPhone">复制</button></div>
+      <div class="row"><div><div class="k">密码</div><div class="v" id="rPwd">—</div></div><button class="copy" data-copy="rPwd">复制</button></div>
+      <div class="row"><div><div class="k">商户名称</div><div class="v" id="rName">—</div></div><button class="copy" data-copy="rName">复制</button></div>
+      <div class="row"><div><div class="k">登录入口</div><div class="v"><a href="https://app.scorehub.cn/merchant/login" target="_blank" rel="noreferrer" style="color:#8b5cff">app.scorehub.cn/merchant/login</a></div></div><button class="copy" data-copy-url>复制</button></div>
     </div>
   </div>
 
   <div class="card">
-    <h2>取验证码</h2>
-    <div class="row">
-      <input id="keyword" placeholder="短信关键词，如：斯氪科技 / 百度" />
-      <input id="waitSec" type="number" value="120" min="10" step="10" />
-      <input id="intervalSec" type="number" value="5" min="2" step="1" />
-    </div>
-    <div class="actions">
-      <button id="poll">开始轮询</button>
-      <button class="ghost" id="stopPoll">停止</button>
-      <button class="ghost" id="release">释放当前号码</button>
-    </div>
-    <div style="margin-top:14px">
-      <div class="kv"><b>状态</b><span id="pollState">空闲</span></div>
-      <div class="kv"><b>验证码</b><span class="code" id="codeOut">—</span></div>
-      <div class="kv"><b>原文</b><span id="smsOut">—</span></div>
-      <div class="log" id="pollLog" style="margin-top:10px"></div>
-    </div>
+    <h2>进度</h2>
+    <div><span class="tag" id="state">待机</span></div>
+    <div class="log" id="log" style="margin-top:12px">—</div>
   </div>
 
   <div class="card">
-    <h2>短信记录</h2>
-    <div class="row"><input id="page" type="number" value="1" min="1" /></div>
-    <div class="actions"><button class="ghost" id="hist">查询记录</button></div>
-    <pre id="histOut">—</pre>
-  </div>
-
-  <div class="card">
-    <h2>原始响应</h2>
-    <pre id="rawOut">—</pre>
+    <h2>本次获取记录</h2>
+    <div class="hist" id="hist">暂无</div>
   </div>
 </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const LS_KEY = "lubans-settings";
-const API = "https://lubansms.com/v2/api/";
+const LS = "scorehub-autoreg";
+const MAX_TRY = 4;
 
-function load(){
-  try{
-    const s = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
-    if(s.apikey) $("apikey").value = s.apikey;
-    if(s.proxy) $("proxy").value = s.proxy;
-  }catch(e){}
-}
-function save(){
-  localStorage.setItem(LS_KEY, JSON.stringify({apikey:$("apikey").value.trim(), proxy:$("proxy").value.trim()}));
-  toast("已保存到本机");
-}
-function toast(msg){
-  $("rawOut").textContent = msg + "\n" + $("rawOut").textContent;
-}
 function log(msg){
   const t = new Date().toLocaleTimeString();
-  $("pollLog").textContent = `[${t}] ${msg}\n` + $("pollLog").textContent;
+  $("log").textContent = `[${t}] ${msg}\n` + ($("log").textContent === "—" ? "" : $("log").textContent);
+}
+function state(txt, cls){
+  const el = $("state");
+  el.textContent = txt;
+  el.className = "tag " + (cls || "");
+}
+function load(){
+  const v = localStorage.getItem(LS + ":api") || "";
+  $("api").value = v;
+  $("apiState").textContent = v ? "已配置" : "未配置后端地址";
+  renderHist();
+}
+$("api").addEventListener("change", () => {
+  localStorage.setItem(LS + ":api", $("api").value.trim().replace(/\/$/, ""));
+  $("apiState").textContent = $("api").value.trim() ? "已配置" : "未配置后端地址";
+});
+
+async function api(path, opts){
+  const base = ($("api").value || "").trim().replace(/\/$/, "");
+  if(!base) throw new Error("先填 Worker 地址");
+  const res = await fetch(base + path, opts);
+  if(!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
 }
 
-async function call(endpoint, params={}){
-  const apikey = $("apikey").value.trim();
-  if(!apikey) throw new Error("未填写 APIKEY");
-  const qs = new URLSearchParams({apikey, ...params}).toString();
-  const direct = API + endpoint + "?" + qs;
-  const proxy = $("proxy").value.trim();
-  const url = proxy ? proxy + encodeURIComponent(direct) : direct;
-  let res;
-  try {
-    res = await fetch(url, {headers:{"Accept":"application/json"}});
-  } catch(e){
-    throw new Error("请求失败（可能是 CORS）：" + e.message + "。请配置代理地址。");
+async function once(){
+  const s = await api("/api/start", {method:"POST"});
+  if(s.status !== "started") throw new Error(s.message || "取号失败");
+  const phone = s.phone;
+  log("取号 " + phone + "，等待号码激活…");
+  if(s.replaced && s.replaced.length) log("已释放低质量号段：" + s.replaced.join(", "));
+  state("激活号码", "warn");
+
+  await countdown(30);
+
+  log("触发短信发送…");
+  const sent = await api("/api/send?phone=" + encodeURIComponent(phone));
+  if(sent.status !== "sent"){ log("发码失败：" + (sent.message||"") + "，换号重试"); return null; }
+  state("等待验证码", "warn");
+
+  for(let i=0;i<40;i++){
+    await new Promise(r=>setTimeout(r, 5000));
+    const p = await api("/api/poll?phone=" + encodeURIComponent(phone));
+    if(p.status === "waiting"){ log("轮询中…（" + (i+1) + "）"); continue; }
+    if(p.status === "blocked"){ log("号码被屏蔽，换号重试：" + (p.message||"")); return null; }
+    if(p.status === "ok"){
+      log("注册成功：" + p.phone);
+      return p;
+    }
+    throw new Error(p.message || ("状态：" + p.status));
   }
-  const text = await res.text();
-  let data;
-  try { data = JSON.parse(text); } catch(e){ throw new Error("响应不是 JSON：" + text.slice(0,160)); }
-  $("rawOut").textContent = endpoint + " →\n" + JSON.stringify(data, null, 2);
-  return data;
+  log("超时未收到验证码，换号重试");
+  return null;
 }
 
-async function balance(){
-  const d = await call("getBalance");
-  const ok = d.code === 0;
-  $("balOut").innerHTML = ok
-    ? `<span class="tag ok">余额 ${d.balance}</span>`
-    : `<span class="tag err">${d.msg || "失败"}</span>`;
+function countdown(sec){
+  return new Promise(resolve => {
+    let left = sec;
+    const tick = () => {
+      $("tip").textContent = "号码激活中，还剩 " + left + "s（等待可显著提高到达率）";
+      if(left-- <= 0){ $("tip").textContent = "手机号 + 密码会自动生成，约 20–90 秒"; resolve(); return; }
+      setTimeout(tick, 1000);
+    };
+    tick();
+  });
 }
 
-async function getNumber(){
-  const phone = $("phoneIn").value.trim();
-  const cardType = $("cardType").value.trim();
-  const params = {};
-  if(phone) params.phone = phone;
-  if(cardType) params.cardType = cardType;
-  const d = await call("getKeywordNumber", params);
-  if(d.code === 0){
-    $("curPhone").textContent = d.phone;
-    $("phoneIn").value = d.phone;
-    log("取号成功 " + d.phone);
-  } else {
-    log("取号失败 " + (d.msg||""));
-  }
-}
-
-let polling = false;
-function extractCode(text){
-  const m = /(?:^|\D)(\d{4,8})(?:\D|$)/.exec(text || "");
-  return m ? m[1] : null;
-}
-
-async function pollOnce(phone, keyword){
-  const d = await call("getKeywordSms", {phone, keyword});
-  if(d.code === 0){
-    $("smsOut").textContent = d.msg || "";
-    const code = extractCode(d.msg);
-    if(code) $("codeOut").textContent = code;
-    return {done:true, code, msg:d.msg};
-  }
-  return {done:false, msg:d.msg || ("code=" + d.code)};
-}
-
-async function startPoll(){
-  const phone = $("curPhone").textContent.trim();
-  const keyword = $("keyword").value.trim();
-  if(!phone || phone === "—") return log("先获取号码");
-  if(!keyword) return log("填写短信关键词");
-  const wait = Math.max(10, Number($("waitSec").value)||120);
-  const interval = Math.max(2, Number($("intervalSec").value)||5);
-  polling = true;
-  $("codeOut").textContent = "—";
-  const deadline = Date.now() + wait*1000;
-  let n = 0;
-  while(polling){
-    n++;
-    try{
-      const r = await pollOnce(phone, keyword);
-      if(r.done){
-        $("pollState").innerHTML = `<span class="tag ok">已收到</span>`;
-        log("第 " + n + " 次命中：" + (r.msg||""));
-        if(r.code) log("验证码 " + r.code);
-        polling = false;
+async function go(){
+  $("go").disabled = true;
+  $("result").classList.remove("show");
+  try{
+    for(let t=1;t<=MAX_TRY;t++){
+      state("获取中（第 " + t + "/" + MAX_TRY + " 次）", "warn");
+      log("=== 第 " + t + " 次尝试 ===");
+      let r = null;
+      try { r = await once(); } catch(e){ log("失败：" + e.message); }
+      if(r){
+        $("rPhone").textContent = r.phone;
+        $("rPwd").textContent = r.password;
+        $("rName").textContent = r.merchantName || ("Score" + r.phone);
+        $("result").classList.add("show");
+        state("已完成", "on");
+        saveHist(r);
         return;
       }
-      const waiting = /尚未收到短信/.test(r.msg);
-      $("pollState").textContent = waiting ? `等待中（第 ${n} 次）` : `返回：${r.msg}`;
-      log("第 " + n + " 次：" + r.msg);
-      if(!waiting && !/尚未收到/.test(r.msg)){ /* 平台其他错误也继续等 */ }
-    }catch(e){
-      log("错误：" + e.message);
-      polling = false;
-      $("pollState").innerHTML = `<span class="tag err">异常</span>`;
-      return;
     }
-    if(Date.now() >= deadline){
-      polling = false;
-      $("pollState").innerHTML = `<span class="tag err">超时</span>`;
-      log(`等待超时（${wait}s）`);
-      return;
-    }
-    await new Promise(r => setTimeout(r, interval*1000));
+    state("未取到账号", "err");
+    log("三次尝试均未成功，稍后再试（号码池可能被屏蔽）");
+  }catch(e){
+    state("出错", "err");
+    log("错误：" + e.message);
+  }finally{
+    $("go").disabled = false;
   }
 }
 
-async function release(){
-  const phone = $("curPhone").textContent.trim();
-  if(!phone || phone === "—") return log("没有可释放的号码");
-  const d = await call("delKeywordNumber", {phone});
-  log(d.code === 0 ? "已释放 " + phone : "释放失败：" + (d.msg||""));
-  if(d.code === 0) $("curPhone").textContent = "—";
+function saveHist(r){
+  const list = JSON.parse(localStorage.getItem(LS + ":hist") || "[]");
+  list.unshift({...r, at: Date.now()});
+  localStorage.setItem(LS + ":hist", JSON.stringify(list.slice(0, 20)));
+  renderHist();
+}
+function renderHist(){
+  const list = JSON.parse(localStorage.getItem(LS + ":hist") || "[]");
+  $("hist").innerHTML = list.length
+    ? list.map(x => `<div>${new Date(x.at).toLocaleString()} · <b>${x.phone}</b> · <b>${x.password}</b> · ${x.merchantName||""}</div>`).join("")
+    : "暂无";
 }
 
-async function history(){
-  const d = await call("keywordSmsHistory", {page: Number($("page").value)||1});
-  $("histOut").textContent = Array.isArray(d) && d.length
-    ? d.map(r => `[${r.time||""}] ${r.phone||""}: ${r.message||""}`).join("\n")
-    : JSON.stringify(d, null, 2);
-}
+document.querySelectorAll(".copy").forEach(btn => {
+  btn.onclick = async () => {
+    const target = btn.dataset.copy;
+    const text = target ? $(target).textContent : "https://app.scorehub.cn/merchant/login";
+    try { await navigator.clipboard.writeText(text); btn.textContent = "已复制"; }
+    catch { btn.textContent = "复制失败"; }
+    setTimeout(()=>{ btn.textContent = "复制"; }, 1200);
+  };
+});
 
-$("save").onclick = save;
-$("bal").onclick = () => balance().catch(e => log(e.message));
-$("getNum").onclick = () => getNumber().catch(e => log(e.message));
-$("poll").onclick = () => startPoll();
-$("stopPoll").onclick = () => { polling = false; log("已停止轮询"); $("pollState").textContent = "空闲"; };
-$("release").onclick = () => release().catch(e => log(e.message));
-$("hist").onclick = () => history().catch(e => log(e.message));
+$("go").onclick = go;
 load();
 </script>
 </body>

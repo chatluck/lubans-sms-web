@@ -1,64 +1,70 @@
-# 鲁班接码 · 在线网页版
+# ScoreHub 账号 · 一键获取（GitHub Pages + Cloudflare Worker）
 
-把 `lubansms.py` 的接码能力搬成浏览器可直接用的单页工具，部署在 GitHub Pages。
+页面：https://chatluck.github.io/lubans-sms-web/
 
-- 纯静态，无后端、无依赖
-- APIKEY 只存浏览器 `localStorage`，页面不向任何第三方上报
-- 支持：查余额 / 取号 / 轮询验证码 / 释放号码 / 短信记录
+点「获取账号」后，后端自动完成：
 
-## 功能对应接口
+```
+lubans 取号 → ScoreHub 发短信 → lubans 收码 → 登录/注册（自动建号）
+→ 设置商户名称 → 设置登录密码 → 标记引导完成 → 返回账号+密码
+```
 
-| 页面操作 | 接口 |
+全程纯 HTTP，不依赖浏览器自动化。
+
+## 目录
+
+```
+index.html        前端（GitHub Pages 托管）
+worker/index.js   后端（Cloudflare Worker）
+worker/wrangler.toml
+```
+
+## 一、部署 Worker（一次性）
+
+```bash
+cd worker
+npx wrangler login                 # 浏览器授权
+npx wrangler secret put LUBANS_APIKEY   # 粘贴 lubans apikey
+npx wrangler deploy
+```
+
+部署成功会打印形如 `https://scorehub-autoreg.<子域>.workers.dev` 的地址。
+
+可选变量（`wrangler.toml` 的 `[vars]`）：
+
+- `LUBANS_KEYWORD`：短信关键词，默认 `斯氪科技`
+
+## 二、前端配置
+
+打开 Pages，在「后端」输入框填 Worker 地址（不带结尾斜杠），回车保存到 localStorage。之后点「获取账号」即可。
+
+## 三、接口
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/api/start` | 取号并发短信，返回 `{status:"started", phone}` |
+| GET | `/api/poll?phone=` | 单次最多等 20s 查码；命中则完成注册并返回 `{status:"ok", phone, password, merchantName}` |
+| GET | `/api/health` | 健康检查，`lubans` 字段表示 key 是否配置 |
+
+`/api/poll` 的状态：`waiting`（继续轮询）、`ok`（拿到账号）、`blocked`（号码被屏蔽，前端自动换号）、`error`。
+
+## 四、背后的 ScoreHub 接口（已实测）
+
+| 步骤 | 接口 |
 |---|---|
-| 查余额 | `getBalance` |
-| 取号 | `getKeywordNumber` |
-| 轮询验证码 | `getKeywordSms` |
-| 释放号码 | `delKeywordNumber` |
-| 短信记录 | `keywordSmsHistory` |
+| 发验证码 | `POST /merchant/auth/verification/send` `{identifier, type:1}` |
+| 登录/注册 | `POST /merchant/auth/login/code` `{identifier, code}` → `data.accessToken` |
+| 设商户名 | `PATCH /merchant/merchant/config/name` `{name}` |
+| 设密码 | `PATCH /merchant/members/me/password` `{newPassword}`（8–18 位，字母数字特殊符号） |
+| 引导完成 | `POST /merchant/merchant/config/guide-completed` `{}` |
+| 密码登录 | `POST /merchant/auth/login` `{username, password}` |
 
-接口前缀：`https://lubansms.com/v2/api/`
+请求头需带 `x-api-version: 1`；Bearer token 来自登录接口。
 
-## 为什么需要代理
+## 五、注意事项
 
-浏览器从 `*.github.io` 直接请求 `lubansms.com` 属于跨域，对方不返回 `Access-Control-Allow-Origin`，会被浏览器拦下。两种用法：
-
-1. **配代理（推荐）**：部署 `worker.js` 到 Cloudflare Workers（免费），拿到形如 `https://xxx.workers.dev/?url=` 的地址，填到页面的「代理地址」。
-2. **不配代理**：页面会提示 CORS 失败，只能用下面的本地方式跑。
-
-## 本地跑（无 CORS 问题）
-
-```bash
-python3 -m http.server 8000 -d web
-# 打开 http://127.0.0.1:8000/
-```
-本地 `127.0.0.1` 与目标站仍跨域，同样需要代理；若想完全免代理，用原来的 CLI：
-
-```bash
-python3 lubansms.py balance
-python3 lubansms.py number
-python3 lubansms.py sms --phone 1xxxxxxxxxx --keyword 斯氪科技
-python3 lubansms.py release --phone 1xxxxxxxxxx
-```
-
-## 部署 Cloudflare Worker
-
-```bash
-npm i -g wrangler
-wrangler login
-wrangler deploy worker.js --name lubans-proxy
-```
-
-部署后用浏览器访问 `https://<name>.<account>.workers.dev/?url=<URL编码后的接口地址>` 自测。
-
-## 部署 GitHub Pages
-
-仓库根目录放 `index.html`（本目录内容），然后在仓库 Settings → Pages 选择分支与目录，或：
-
-```bash
-gh api -X POST repos/<owner>/<repo>/pages -f source[branch]=main -f source[path]=/
-```
-
-## 安全提醒
-
-- 页面里的 APIKEY 会被任何打开该页面的人看到余额与号码操作权；对外公开页面时建议只部署给自己用（私有仓库 + Pages 仍公开），或让使用者自己填 key。
-- `worker.js` 默认允许所有来源，建议把 `ALLOW_ORIGIN` 改成你的 Pages 域名。
+- **密码规则**：8–18 位，需字母+数字，特殊符号限 `!@#$%&*?.`；Worker 生成形如 `Sc7fK3mQ92x`。
+- **号码池**：`131`/`132` 段成功率最高；`191/193/170/162/155/173` 常被屏蔽。被屏蔽时 `/api/poll` 返回 `blocked`，前端会自动重新取号（最多 3 次）。
+- **号码是账号的唯一找回方式**：lubans 订单释放后，短信登录/忘记密码都不可用，只能密码登录。需要保留找回能力就别释放订单。
+- **成本**：每成功一条短信约 0.08（lubans 计费），失败/屏蔽不计费。
+- **安全**：Worker 里存 lubans apikey，`Access-Control-Allow-Origin` 目前是 `*`。若不想让别人白用，把 `worker/index.js` 的 `cors()` 改成只允许 `https://chatluck.github.io`。
