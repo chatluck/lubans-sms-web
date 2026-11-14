@@ -68,3 +68,10 @@ npx wrangler deploy
 - **号码是账号的唯一找回方式**：lubans 订单释放后，短信登录/忘记密码都不可用，只能密码登录。需要保留找回能力就别释放订单。
 - **成本**：每成功一条短信约 0.08（lubans 计费），失败/屏蔽不计费。
 - **安全**：Worker 里存 lubans apikey，`Access-Control-Allow-Origin` 目前是 `*`。若不想让别人白用，把 `worker/index.js` 的 `cors()` 改成只允许 `https://chatluck.github.io`。
+
+## 号池质量说明（实测）
+
+- lubans 的 `getKeywordNumber` 返回的号段随时间波动，13[1-9] / 18x 段能收到「斯氪科技」短信，`15x/16x/17x/19x` 段几乎全被运营商拦截。
+- Worker 会先连抽最多 6 个号筛出 13x/18x；抽不到就用最后一个号回退试一次（返回体里 `fallback: true`）。
+- 某些时段整池都是坏号段（实测出现过连续 17 个号全不可用），此时前端会按 `MAX_TRY` 自动重来。号池恢复后成功率立刻回升。
+- 已验证的完整成功样本：`18307320380` / `ScVbuAizd47gx`（密码登录返回 accessToken）。
