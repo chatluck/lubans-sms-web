@@ -75,3 +75,26 @@ npx wrangler deploy
 - Worker 会先连抽最多 6 个号筛出 13x/18x；抽不到就用最后一个号回退试一次（返回体里 `fallback: true`）。
 - 某些时段整池都是坏号段（实测出现过连续 17 个号全不可用），此时前端会按 `MAX_TRY` 自动重来。号池恢复后成功率立刻回升。
 - 已验证的完整成功样本：`18307320380` / `ScVbuAizd47gx`（密码登录返回 accessToken）。
+
+## 后端已迁到 Cloudflare Pages（2026-11-14）
+
+- `workers.dev` 在当前网络被整域阻断（TLS Client Hello 无响应），Worker 版不可用。
+- 现后端为 **Cloudflare Pages Functions**：`https://scorehub-autoreg.pages.dev/api/*`
+- 前端同域部署：`https://scorehub-autoreg.pages.dev/`；GitHub Pages 版也指向该后端。
+- 部署命令（需要 Cloudflare Pages:Edit 的 API Token）：
+
+```bash
+cd web
+CLOUDFLARE_API_TOKEN=xxx CLOUDFLARE_ACCOUNT_ID=b6b876e5d55f8d5aa97b191d38519396 \
+  wrangler pages deploy . --project-name=scorehub-autoreg --branch=main --commit-dirty=true
+```
+
+## 实测：失败原因定位
+
+| 结论 | 证据 |
+|---|---|
+| 非 IP 风控 | 同一号码 `15558440393` 由 Pages（Cloudflare IP）发码 → 收到 `112837`；浏览器发码 → 收到 `037487` |
+| 非 CORS/接口问题 | `login/code` 从 Pages 调用返回 201 + accessToken |
+| 号段屏蔽 | `162/167/156/155…` 直接返回「已被当前号码提供方屏蔽，可换其他号码再试」 |
+| 取号限速 | 快速连抽返回「操作太快,请稍后重试」，需退避 20s |
+| 邮箱不可用 | 邮箱发码返回 `1004 该手机号或邮箱未注册`，注册只开放手机号 |
