@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>鲁班接码 · 在线工具</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+    --text:#e8eaed; --muted:#9aa3b2; --accent:#5b8cff; --ok:#38c172; --warn:#f0a020; --err:#ef4b6d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 -apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:32px 20px 80px}
+  header{display:flex;align-items:baseline;gap:12px;margin-bottom:24px}
+  h1{font-size:20px;margin:0;letter-spacing:.5px}
+  header .sub{color:var(--muted);font-size:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+  .card h2{font-size:13px;color:var(--muted);font-weight:600;margin:0 0 12px;letter-spacing:1px;text-transform:uppercase}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+  input,select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 11px;font:inherit;outline:none}
+  input:focus,select:focus{border-color:var(--accent)}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row > *{flex:1 1 160px}
+  button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:10px 16px;font:inherit;cursor:pointer}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  pre{background:#0b0d11;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:12px;max-height:320px;margin:0}
+  .kv{display:grid;grid-template-columns:110px 1fr;gap:6px 12px;font-size:13px}
+  .kv b{color:var(--muted);font-weight:500}
+  .code{font-size:28px;letter-spacing:6px;font-weight:700;color:var(--ok);font-variant-numeric:tabular-nums}
+  .hint{color:var(--muted);font-size:12px;margin-top:8px}
+  .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;border:1px solid var(--line);color:var(--muted)}
+  .tag.ok{color:var(--ok);border-color:rgba(56,193,114,.4)}
+  .tag.err{color:var(--err);border-color:rgba(239,75,109,.4)}
+  .log{font-size:12px;color:var(--muted);white-space:pre-wrap;max-height:160px;overflow:auto}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>鲁班接码 · 在线工具</h1>
+    <span class="sub">lubansms.com v2 API · 纯前端</span>
+  </header>
+
+  <div class="card">
+    <h2>连接</h2>
+    <label>APIKEY（仅存本机 localStorage，不会上传到任何服务器）</label>
+    <input id="apikey" placeholder="粘贴你的 lubansms APIKEY" autocomplete="off" />
+    <label>代理地址（可选：Cloudflare Worker / 自建转发，解决 CORS）</label>
+    <input id="proxy" placeholder="https://your-worker.workers.dev/?url=" autocomplete="off" />
+    <div class="actions">
+      <button id="save">保存设置</button>
+      <button class="ghost" id="bal">查余额</button>
+      <span id="balOut" style="align-self:center"></span>
+    </div>
+    <div class="hint" id="corsHint">浏览器直连 lubansms.com 会被 CORS 拦截；部署同域 Worker 代理后填在上一栏即可正常使用。</div>
+  </div>
+
+  <div class="card">
+    <h2>取号</h2>
+    <div class="row">
+      <input id="phoneIn" placeholder="复用号码（留空=随机分配）" autocomplete="off" />
+      <input id="cardType" placeholder="cardType（可选，已弃用）" autocomplete="off" />
+    </div>
+    <div class="actions">
+      <button id="getNum">获取号码</button>
+    </div>
+    <div class="kv" style="margin-top:14px">
+      <b>当前号码</b><span id="curPhone">—</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>取验证码</h2>
+    <div class="row">
+      <input id="keyword" placeholder="短信关键词，如：斯氪科技 / 百度" />
+      <input id="waitSec" type="number" value="120" min="10" step="10" />
+      <input id="intervalSec" type="number" value="5" min="2" step="1" />
+    </div>
+    <div class="actions">
+      <button id="poll">开始轮询</button>
+      <button class="ghost" id="stopPoll">停止</button>
+      <button class="ghost" id="release">释放当前号码</button>
+    </div>
+    <div style="margin-top:14px">
+      <div class="kv"><b>状态</b><span id="pollState">空闲</span></div>
+      <div class="kv"><b>验证码</b><span class="code" id="codeOut">—</span></div>
+      <div class="kv"><b>原文</b><span id="smsOut">—</span></div>
+      <div class="log" id="pollLog" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>短信记录</h2>
+    <div class="row"><input id="page" type="number" value="1" min="1" /></div>
+    <div class="actions"><button class="ghost" id="hist">查询记录</button></div>
+    <pre id="histOut">—</pre>
+  </div>
+
+  <div class="card">
+    <h2>原始响应</h2>
+    <pre id="rawOut">—</pre>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const LS_KEY = "lubans-settings";
+const API = "https://lubansms.com/v2/api/";
+
+function load(){
+  try{
+    const s = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+    if(s.apikey) $("apikey").value = s.apikey;
+    if(s.proxy) $("proxy").value = s.proxy;
+  }catch(e){}
+}
+function save(){
+  localStorage.setItem(LS_KEY, JSON.stringify({apikey:$("apikey").value.trim(), proxy:$("proxy").value.trim()}));
+  toast("已保存到本机");
+}
+function toast(msg){
+  $("rawOut").textContent = msg + "\n" + $("rawOut").textContent;
+}
+function log(msg){
+  const t = new Date().toLocaleTimeString();
+  $("pollLog").textContent = `[${t}] ${msg}\n` + $("pollLog").textContent;
+}
+
+async function call(endpoint, params={}){
+  const apikey = $("apikey").value.trim();
+  if(!apikey) throw new Error("未填写 APIKEY");
+  const qs = new URLSearchParams({apikey, ...params}).toString();
+  const direct = API + endpoint + "?" + qs;
+  const proxy = $("proxy").value.trim();
+  const url = proxy ? proxy + encodeURIComponent(direct) : direct;
+  let res;
+  try {
+    res = await fetch(url, {headers:{"Accept":"application/json"}});
+  } catch(e){
+    throw new Error("请求失败（可能是 CORS）：" + e.message + "。请配置代理地址。");
+  }
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch(e){ throw new Error("响应不是 JSON：" + text.slice(0,160)); }
+  $("rawOut").textContent = endpoint + " →\n" + JSON.stringify(data, null, 2);
+  return data;
+}
+
+async function balance(){
+  const d = await call("getBalance");
+  const ok = d.code === 0;
+  $("balOut").innerHTML = ok
+    ? `<span class="tag ok">余额 ${d.balance}</span>`
+    : `<span class="tag err">${d.msg || "失败"}</span>`;
+}
+
+async function getNumber(){
+  const phone = $("phoneIn").value.trim();
+  const cardType = $("cardType").value.trim();
+  const params = {};
+  if(phone) params.phone = phone;
+  if(cardType) params.cardType = cardType;
+  const d = await call("getKeywordNumber", params);
+  if(d.code === 0){
+    $("curPhone").textContent = d.phone;
+    $("phoneIn").value = d.phone;
+    log("取号成功 " + d.phone);
+  } else {
+    log("取号失败 " + (d.msg||""));
+  }
+}
+
+let polling = false;
+function extractCode(text){
+  const m = /(?:^|\D)(\d{4,8})(?:\D|$)/.exec(text || "");
+  return m ? m[1] : null;
+}
+
+async function pollOnce(phone, keyword){
+  const d = await call("getKeywordSms", {phone, keyword});
+  if(d.code === 0){
+    $("smsOut").textContent = d.msg || "";
+    const code = extractCode(d.msg);
+    if(code) $("codeOut").textContent = code;
+    return {done:true, code, msg:d.msg};
+  }
+  return {done:false, msg:d.msg || ("code=" + d.code)};
+}
+
+async function startPoll(){
+  const phone = $("curPhone").textContent.trim();
+  const keyword = $("keyword").value.trim();
+  if(!phone || phone === "—") return log("先获取号码");
+  if(!keyword) return log("填写短信关键词");
+  const wait = Math.max(10, Number($("waitSec").value)||120);
+  const interval = Math.max(2, Number($("intervalSec").value)||5);
+  polling = true;
+  $("codeOut").textContent = "—";
+  const deadline = Date.now() + wait*1000;
+  let n = 0;
+  while(polling){
+    n++;
+    try{
+      const r = await pollOnce(phone, keyword);
+      if(r.done){
+        $("pollState").innerHTML = `<span class="tag ok">已收到</span>`;
+        log("第 " + n + " 次命中：" + (r.msg||""));
+        if(r.code) log("验证码 " + r.code);
+        polling = false;
+        return;
+      }
+      const waiting = /尚未收到短信/.test(r.msg);
+      $("pollState").textContent = waiting ? `等待中（第 ${n} 次）` : `返回：${r.msg}`;
+      log("第 " + n + " 次：" + r.msg);
+      if(!waiting && !/尚未收到/.test(r.msg)){ /* 平台其他错误也继续等 */ }
+    }catch(e){
+      log("错误：" + e.message);
+      polling = false;
+      $("pollState").innerHTML = `<span class="tag err">异常</span>`;
+      return;
+    }
+    if(Date.now() >= deadline){
+      polling = false;
+      $("pollState").innerHTML = `<span class="tag err">超时</span>`;
+      log(`等待超时（${wait}s）`);
+      return;
+    }
+    await new Promise(r => setTimeout(r, interval*1000));
+  }
+}
+
+async function release(){
+  const phone = $("curPhone").textContent.trim();
+  if(!phone || phone === "—") return log("没有可释放的号码");
+  const d = await call("delKeywordNumber", {phone});
+  log(d.code === 0 ? "已释放 " + phone : "释放失败：" + (d.msg||""));
+  if(d.code === 0) $("curPhone").textContent = "—";
+}
+
+async function history(){
+  const d = await call("keywordSmsHistory", {page: Number($("page").value)||1});
+  $("histOut").textContent = Array.isArray(d) && d.length
+    ? d.map(r => `[${r.time||""}] ${r.phone||""}: ${r.message||""}`).join("\n")
+    : JSON.stringify(d, null, 2);
+}
+
+$("save").onclick = save;
+$("bal").onclick = () => balance().catch(e => log(e.message));
+$("getNum").onclick = () => getNumber().catch(e => log(e.message));
+$("poll").onclick = () => startPoll();
+$("stopPoll").onclick = () => { polling = false; log("已停止轮询"); $("pollState").textContent = "空闲"; };
+$("release").onclick = () => release().catch(e => log(e.message));
+$("hist").onclick = () => history().catch(e => log(e.message));
+load();
+</script>
+</body>
+</html>
