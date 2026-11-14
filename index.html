@@ -92,6 +92,7 @@
 const $ = (id) => document.getElementById(id);
 const LS = "scorehub-autoreg";
 const MAX_TRY = 4;
+const DEFAULT_API = "https://scorehub-autoreg.360qaws360.workers.dev";
 
 function log(msg){
   const t = new Date().toLocaleTimeString();
@@ -103,7 +104,7 @@ function state(txt, cls){
   el.className = "tag " + (cls || "");
 }
 function load(){
-  const v = localStorage.getItem(LS + ":api") || "";
+  const v = localStorage.getItem(LS + ":api") || DEFAULT_API;
   $("api").value = v;
   $("apiState").textContent = v ? "已配置" : "未配置后端地址";
   renderHist();
