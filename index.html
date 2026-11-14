@@ -57,13 +57,6 @@
   </header>
 
   <div class="card">
-    <h2>后端</h2>
-    <label>Worker 地址（部署 worker/index.js 后填写，如 https://scorehub-autoreg.xxx.workers.dev）</label>
-    <input id="api" placeholder="https://your-worker.workers.dev" />
-    <div class="hint" id="apiState">未配置后端地址</div>
-  </div>
-
-  <div class="card">
     <h2>获取账号</h2>
     <button class="main-btn" id="go">获取账号</button>
     <div class="hint" id="tip">手机号 + 密码会自动生成，约 20–90 秒</div>
@@ -104,20 +97,11 @@ function state(txt, cls){
   el.className = "tag " + (cls || "");
 }
 function load(){
-  const v = localStorage.getItem(LS + ":api") || DEFAULT_API;
-  $("api").value = v;
-  $("apiState").textContent = v ? "已配置" : "未配置后端地址";
   renderHist();
 }
-$("api").addEventListener("change", () => {
-  localStorage.setItem(LS + ":api", $("api").value.trim().replace(/\/$/, ""));
-  $("apiState").textContent = $("api").value.trim() ? "已配置" : "未配置后端地址";
-});
 
 async function api(path, opts){
-  const base = ($("api").value || "").trim().replace(/\/$/, "");
-  if(!base) throw new Error("先填 Worker 地址");
-  const res = await fetch(base + path, opts);
+  const res = await fetch(DEFAULT_API + path, opts);
   if(!res.ok) throw new Error("HTTP " + res.status);
   return res.json();
 }
