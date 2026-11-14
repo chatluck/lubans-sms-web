@@ -113,7 +113,7 @@ function makePassword() {
 // ---------- 业务 ----------
 
 // 号段经验：13x 段（联通实卡）到达率明显更高，其它段常被运营商屏蔽
-const GOOD_PREFIX = /^1(3\d|4[5-9]|5[0-3]|8[0-9])\d{8}$/;
+const GOOD_PREFIX = /^1(3[1-9]|8[0-9])\d{8}$/;
 const RELEASE_UNUSABLE = true;
 
 async function releaseNumber(env, phone) {
@@ -124,7 +124,7 @@ async function releaseNumber(env, phone) {
   }
 }
 
-async function pickNumber(env, tries = 10) {
+async function pickNumber(env, tries = 6) {
   const rejected = [];
   let lastPhone = null;
   for (let i = 0; i < tries; i++) {
@@ -169,9 +169,9 @@ async function handlePoll(env, phone, origin) {
   if (!phone) return json({ status: "error", message: "缺少 phone" }, 400, origin);
   const keyword = env.LUBANS_KEYWORD || "斯氪科技";
 
-  // 单次请求内最多轮询 20 秒，避免 Worker 超时
+  // 单次请求内只等几秒，避免超过 Worker 的 30s 上限；轮询由前端驱动
   let smsText = "";
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 3; i++) {
     const r = await lubans(env, "getKeywordSms", { phone, keyword });
     if (r && r.code === 0) {
       smsText = r.msg || "";
@@ -181,7 +181,7 @@ async function handlePoll(env, phone, origin) {
     if (isBlocked(msg)) {
       return json({ status: "blocked", message: msg, phone }, 200, origin);
     }
-    await sleep(4000);
+    await sleep(2500);
   }
 
   if (!smsText) return json({ status: "waiting", phone }, 200, origin);
