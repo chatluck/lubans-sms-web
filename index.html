@@ -71,7 +71,7 @@
     <div class="row" style="margin-top:10px;align-items:center">
       <span class="tag" id="balLubans">鲁班 $—</span>
       <span class="tag" id="balIsms">爱接码 ¥—</span>
-      <a class="copy" id="balTopup" href="https://www.i-sms.app/platform/recharge" target="_blank" rel="noreferrer" style="flex:0 0 auto;text-decoration:none">充值爱接码 ↗</a>
+      <button class="copy" id="balTopup" style="flex:0 0 auto">充值爱接码 ↗</button>
       <button class="copy" id="balRefresh" style="flex:0 0 auto">刷新余额</button>
     </div>
     <div class="hint" id="tip">手机号 + 密码会自动生成，约 20–90 秒</div>
@@ -108,6 +108,31 @@ function log(msg){
   const t = new Date().toLocaleTimeString();
   $("log").textContent = `[${t}] ${msg}\n` + ($("log").textContent === "—" ? "" : $("log").textContent);
 }
+let topupTimer = null;
+function ismsBalanceNumber(){
+  const el = $("balIsms");
+  if(!el) return null;
+  const m = /¥([0-9]+(?:\.[0-9]+)?)/.exec(el.textContent || "");
+  return m ? Number(m[1]) : null;
+}
+
+function watchTopup(before){
+  if(topupTimer) clearInterval(topupTimer);
+  let ticks = 0;
+  $("tip").textContent = "已打开爱接码充值页，支付后会自动刷新余额…";
+  topupTimer = setInterval(async () => {
+    ticks++;
+    await refreshBalances();
+    const now = ismsBalanceNumber();
+    if(now !== null && before !== null && now > before){
+      clearInterval(topupTimer); topupTimer = null;
+      $("tip").textContent = "充值到账：爱接码 ¥" + now + "（原 ¥" + before + "）";
+      return;
+    }
+    if(ticks >= 80){ clearInterval(topupTimer); topupTimer = null; }
+  }, 15000);
+}
+
 async function refreshBalances(){
   const l = $("balLubans"), i = $("balIsms");
   if(l) l.textContent = "鲁班 …";
@@ -257,6 +282,12 @@ document.querySelectorAll(".copy").forEach(btn => {
 $("go").onclick = go;
 const br = $("balRefresh");
 if(br) br.onclick = refreshBalances;
+const bt = $("balTopup");
+if(bt) bt.onclick = () => {
+  const before = ismsBalanceNumber();
+  window.open("https://www.i-sms.app/platform/recharge", "_blank", "noopener");
+  watchTopup(before);
+};
 load();
 refreshBalances();
 </script>

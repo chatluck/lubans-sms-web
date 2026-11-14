@@ -127,6 +127,7 @@ Header: X-API-KEY
 
 - 页面余额条右侧有「充值爱接码 ↗」，新窗口打开官方充值页 `https://www.i-sms.app/platform/recharge`（浏览器已登录 i-sms 时可直接微信/支付宝扫码，充值范围 ¥5–20000）。
 - 充值后点「刷新余额」即可看到新余额。
-- 无法内嵌的原因（实测）：
+- 点「充值爱接码 ↗」会在新窗口打开官方页，同时前端每 15 秒刷新一次余额，到账后自动提示。
+- 无法内嵌/代下单的原因（实测）：
   - 官方页 `X-Frame-Options: SAMEORIGIN`、`CSP: frame-ancestors 'self'`，iframe 会被浏览器拒绝。
-  - 充值接口 `POST /api/user/recharge` 有请求签名/加密校验（缺签名返回 `ENC_VALIDATION_FAILED`），且需网页登录态而非 API Key，无法由后端代下单。
+  - 充值接口要求 **WASM 请求加密 + `X-Encryption-Key` 签名头**（前端 bundle 里有 `encryptRequestWasm` / `RSA-OAEP` / `aesKey` / `nonce`，缺签名返回 `ENC_VALIDATION_FAILED`），且必须网页登录态而非 API Key。因此即使把网页 token 交给后端，也无法构造出合法密文请求。
