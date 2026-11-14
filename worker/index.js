@@ -365,6 +365,21 @@ export default {
         }));
         return json({ probes: out }, 200, origin);
       }
+      if (url.pathname === "/api/balances") {
+        const out = { lubans: null, isms: null };
+        try {
+          const r = await lubans(env, "getBalance", {});
+          out.lubans = r && r.code === 0 ? String(r.balance) : null;
+          out.lubansCurrency = "USD";
+        } catch (e) { out.lubansError = String(e.message || e); }
+        try {
+          const r = await isms(env, "/api/v1/user/info", {});
+          const v = r?.user?.balance ?? r?.balance ?? null;
+          out.isms = v === null ? null : String(v);
+          out.ismsCurrency = "CNY";
+        } catch (e) { out.ismsError = String(e.message || e); }
+        return json(out, 200, origin);
+      }
       if (url.pathname === "/api/release") {
         const phone = url.searchParams.get("phone");
         const provider = url.searchParams.get("provider") || "lubans";

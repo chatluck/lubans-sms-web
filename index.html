@@ -20,7 +20,8 @@
   .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:16px}
   .card h2{font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin:0 0 14px;font-weight:600}
   label{display:block;font-size:12px;color:var(--muted);margin:4px 0 6px}
-  input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:11px 13px;font:inherit;outline:none}
+  input,select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:11px 13px;font:inherit;outline:none}
+  select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,#8b94a3 50%),linear-gradient(135deg,#8b94a3 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
   input:focus{border-color:var(--accent)}
   .main-btn{width:100%;margin-top:8px;padding:18px;border:0;border-radius:14px;cursor:pointer;font:600 16px/1 inherit;
     color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));
@@ -61,11 +62,16 @@
     <button class="main-btn" id="go">获取账号</button>
     <div class="row" style="margin-top:14px;align-items:center">
       <label style="margin:0;flex:0 0 48px">号源</label>
-      <select id="provider" style="flex:1">
+      <select id="provider" style="flex:1;max-width:none">
         <option value="auto">自动（鲁班优先，失败切爱接码）</option>
         <option value="lubans">鲁班短信（约 ¥0.08/条）</option>
         <option value="isms">爱接码（约 ¥1/号，斯氪项目直连）</option>
       </select>
+    </div>
+    <div class="row" style="margin-top:10px;align-items:center">
+      <span class="tag" id="balLubans">鲁班 $—</span>
+      <span class="tag" id="balIsms">爱接码 ¥—</span>
+      <button class="copy" id="balRefresh" style="flex:0 0 auto">刷新余额</button>
     </div>
     <div class="hint" id="tip">手机号 + 密码会自动生成，约 20–90 秒</div>
 
@@ -101,6 +107,20 @@ function log(msg){
   const t = new Date().toLocaleTimeString();
   $("log").textContent = `[${t}] ${msg}\n` + ($("log").textContent === "—" ? "" : $("log").textContent);
 }
+async function refreshBalances(){
+  const l = $("balLubans"), i = $("balIsms");
+  if(l) l.textContent = "鲁班 …";
+  if(i) i.textContent = "爱接码 …";
+  try {
+    const b = await api("/api/balances");
+    if(l) l.textContent = "鲁班 $" + (b.lubans === null ? "?" : b.lubans) + "（美元）";
+    if(i) i.textContent = "爱接码 ¥" + (b.isms === null ? "?" : b.isms) + "（人民币）";
+  } catch(e){
+    if(l) l.textContent = "鲁班 读取失败";
+    if(i) i.textContent = "爱接码 读取失败";
+  }
+}
+
 function state(txt, cls){
   const el = $("state");
   el.textContent = txt;
@@ -195,10 +215,12 @@ async function go(){
         $("result").classList.add("show");
         state("已完成", "on");
         saveHist(r);
+        refreshBalances();
         return;
       }
     }
     state("未取到账号", "err");
+    refreshBalances();
     log("三次尝试均未成功，稍后再试（号码池可能被屏蔽）");
   }catch(e){
     state("出错", "err");
@@ -232,7 +254,10 @@ document.querySelectorAll(".copy").forEach(btn => {
 });
 
 $("go").onclick = go;
+const br = $("balRefresh");
+if(br) br.onclick = refreshBalances;
 load();
+refreshBalances();
 </script>
 </body>
 </html>
