@@ -1,4 +1,4 @@
-# ScoreHub 账号 · 一键获取（GitHub Pages + Cloudflare Worker）
+# ScoreHub 账号 · 一键获取（Cloudflare Pages 双号源）
 
 页面：https://chatluck.github.io/lubans-sms-web/
 
@@ -98,3 +98,27 @@ CLOUDFLARE_API_TOKEN=xxx CLOUDFLARE_ACCOUNT_ID=b6b876e5d55f8d5aa97b191d38519396 
 | 号段屏蔽 | `162/167/156/155…` 直接返回「已被当前号码提供方屏蔽，可换其他号码再试」 |
 | 取号限速 | 快速连抽返回「操作太快,请稍后重试」，需退避 20s |
 | 邮箱不可用 | 邮箱发码返回 `1004 该手机号或邮箱未注册`，注册只开放手机号 |
+
+## 双号源（2026-11-14 新增）
+
+后端支持两个接码平台，前端「号源」可选：
+
+| 号源 | 接口 | 单价 | 特点 |
+|---|---|---|---|
+| 鲁班短信 | `lubansms.com/v2/api` | 约 ¥0.08/条成功短信 | 便宜；号段常被「斯氪科技」供应商屏蔽，且连抽会限速 |
+| 爱接码 | `i-sms.app` | 约 ¥1/号 | 有「深圳市斯氪科技」专项项目（project_id=111073），收码稳定、约 10 秒到达 |
+
+- `provider=auto`：先鲁班，取号失败/不可用时自动切爱接码
+- `provider=lubans` / `provider=isms`：强制单一号源
+- 接口：`/api/start?provider=` → 返回 `{provider, phone, orderId}`；`/api/poll?phone=&provider=&orderId=`；`/api/release?phone=&provider=&orderId=`
+
+### 爱接码接口（已验证）
+
+```
+GET /api/v2/get_number?project_id=111073&project_name=深圳市斯氪科技&project_token=...&quantity=1
+GET /api/v1/get_sms?order_id=...
+GET /api/v1/release_number?order_id=...
+Header: X-API-KEY
+```
+
+实测：取号 `17033115303` → 收码 → 注册 → 密码 `ScpubMDDj46cx`，密码登录返回 code 0。

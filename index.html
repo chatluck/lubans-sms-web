@@ -59,12 +59,21 @@
   <div class="card">
     <h2>获取账号</h2>
     <button class="main-btn" id="go">获取账号</button>
+    <div class="row" style="margin-top:14px;align-items:center">
+      <label style="margin:0;flex:0 0 48px">号源</label>
+      <select id="provider" style="flex:1">
+        <option value="auto">自动（鲁班优先，失败切爱接码）</option>
+        <option value="lubans">鲁班短信（约 ¥0.08/条）</option>
+        <option value="isms">爱接码（约 ¥1/号，斯氪项目直连）</option>
+      </select>
+    </div>
     <div class="hint" id="tip">手机号 + 密码会自动生成，约 20–90 秒</div>
 
     <div class="result" id="result">
       <div class="row"><div><div class="k">账号（手机号）</div><div class="v" id="rPhone">—</div></div><button class="copy" data-copy="rPhone">复制</button></div>
       <div class="row"><div><div class="k">密码</div><div class="v" id="rPwd">—</div></div><button class="copy" data-copy="rPwd">复制</button></div>
       <div class="row"><div><div class="k">商户名称</div><div class="v" id="rName">—</div></div><button class="copy" data-copy="rName">复制</button></div>
+      <div class="row"><div><div class="k">号源</div><div class="v" id="rProv">—</div></div><button class="copy" data-copy="rProv">复制</button></div>
       <div class="row"><div><div class="k">登录入口</div><div class="v"><a href="https://app.scorehub.cn/merchant/login" target="_blank" rel="noreferrer" style="color:#8b5cff">app.scorehub.cn/merchant/login</a></div></div><button class="copy" data-copy-url>复制</button></div>
     </div>
   </div>
@@ -114,10 +123,14 @@ async function api(path, opts){
 }
 
 async function once(){
-  const s = await api("/api/start", {method:"POST"});
+  const provider = ($("provider") && $("provider").value) || "auto";
+  const s = await api("/api/start?provider=" + encodeURIComponent(provider), {method:"POST"});
   if(s.status !== "started") throw new Error(s.message || "取号失败");
   const phone = s.phone;
-  log("取号 " + phone + "，等待号码激活…");
+  const prov = s.provider || "lubans";
+  const orderId = s.orderId || "";
+  const provName = prov === "isms" ? "爱接码" : "鲁班";
+  log("取号 " + phone + "（" + provName + "）" + (s.note ? " · " + s.note : "") + "，等待号码激活…");
   if(s.replaced && s.replaced.length) log("已释放低质量号段：" + s.replaced.join(", "));
   state("激活号码", "warn");
 
@@ -129,19 +142,21 @@ async function once(){
   state("等待验证码", "warn");
 
   for(let i=0;i<MAX_POLL;i++){
-    const p = await api("/api/poll?phone=" + encodeURIComponent(phone));
+    const p = await api("/api/poll?phone=" + encodeURIComponent(phone) + "&provider=" + prov + (orderId ? "&orderId=" + encodeURIComponent(orderId) : ""));
     if(p.status === "waiting"){ log("轮询 " + (i+1) + "/" + MAX_POLL + " 未收到"); continue; }
     if(p.status === "blocked"){ log("号码被屏蔽，释放换号"); await release(phone); return null; }
-    if(p.status === "ok"){ log("注册成功：" + p.phone); return p; }
-    log("异常：" + (p.message||p.status)); await release(phone); return null;
+    if(p.status === "ok"){ log("注册成功：" + p.phone + "（" + provName + "）"); return {...p, provider: prov}; }
+    log("异常：" + (p.message||p.status)); await release(phone, prov, orderId); return null;
   }
   log("3 次轮询无码，释放 " + phone + " 换号");
-  await release(phone);
+  await release(phone, prov, orderId);
   return null;
 }
 
-async function release(phone){
-  try { await api("/api/release?phone=" + encodeURIComponent(phone)); } catch(e){ /* 忽略 */ }
+async function release(phone, provider, orderId){
+  try {
+    await api("/api/release?phone=" + encodeURIComponent(phone) + "&provider=" + (provider||"lubans") + (orderId ? "&orderId=" + encodeURIComponent(orderId) : ""));
+  } catch(e){ /* 忽略 */ }
 }
 
 function countdown(sec){
@@ -176,6 +191,7 @@ async function go(){
         $("rPhone").textContent = r.phone;
         $("rPwd").textContent = r.password;
         $("rName").textContent = r.merchantName || ("Score" + r.phone);
+        $("rProv").textContent = (r.provider === "isms" ? "爱接码" : "鲁班");
         $("result").classList.add("show");
         state("已完成", "on");
         saveHist(r);
