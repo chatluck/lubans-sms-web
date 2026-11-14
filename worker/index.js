@@ -181,7 +181,7 @@ async function handlePoll(env, phone, origin) {
 
   // 单次请求内只等几秒，避免超过 Worker 的 30s 上限；轮询由前端驱动
   let smsText = "";
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 2; i++) {
     const r = await lubans(env, "getKeywordSms", { phone, keyword });
     if (r && r.code === 0) {
       smsText = r.msg || "";
@@ -191,7 +191,7 @@ async function handlePoll(env, phone, origin) {
     if (isBlocked(msg)) {
       return json({ status: "blocked", message: msg, phone }, 200, origin);
     }
-    await sleep(3000);
+    await sleep(4000);
   }
 
   if (!smsText) return json({ status: "waiting", phone }, 200, origin);
@@ -270,6 +270,12 @@ export default {
           return { http: r.http, code: r.data?.code };
         }));
         return json({ probes: out }, 200, origin);
+      }
+      if (url.pathname === "/api/release") {
+        const phone = url.searchParams.get("phone");
+        if (!phone) return json({ status: "error", message: "缺少 phone" }, 400, origin);
+        const r = await lubans(env, "delKeywordNumber", { phone }).catch((e) => ({ code: -1, msg: String(e.message || e) }));
+        return json({ status: r && r.code === 0 ? "released" : "failed", phone, msg: r && r.msg }, 200, origin);
       }
       if (url.pathname === "/api/dev-send") {
         const identifier = url.searchParams.get("identifier");
