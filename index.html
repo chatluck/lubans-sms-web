@@ -101,9 +101,15 @@ function load(){
 }
 
 async function api(path, opts){
-  const res = await fetch(DEFAULT_API + path, opts);
-  if(!res.ok) throw new Error("HTTP " + res.status);
-  return res.json();
+  let res;
+  try {
+    res = await fetch(DEFAULT_API + path, opts);
+  } catch(e){
+    throw new Error("网络超时，重试中");
+  }
+  const text = await res.text();
+  if(!text){ throw new Error("平台响应超时（30s）"); }
+  try { return JSON.parse(text); } catch(e){ throw new Error("响应异常：" + text.slice(0,80)); }
 }
 
 async function once(){
@@ -157,6 +163,7 @@ async function go(){
       log("=== 第 " + t + " 次尝试 ===");
       let r = null;
       try { r = await once(); } catch(e){ log("失败：" + e.message); }
+      if(!r && t < MAX_TRY){ log("稍等 8 秒再试…"); await new Promise(res=>setTimeout(res, 8000)); }
       if(r){
         $("rPhone").textContent = r.phone;
         $("rPwd").textContent = r.password;

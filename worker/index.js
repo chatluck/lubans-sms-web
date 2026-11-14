@@ -38,7 +38,7 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function fetchText(url, init, tries = 3) {
+async function fetchText(url, init, tries = 2) {
   let lastErr;
   for (let i = 0; i < tries; i++) {
     try {
@@ -46,7 +46,7 @@ async function fetchText(url, init, tries = 3) {
       return await res.text();
     } catch (e) {
       lastErr = e;
-      await sleep(800 * (i + 1));
+      await sleep(500 * (i + 1));
     }
   }
   throw new Error("网络请求失败：" + (lastErr?.message || lastErr));
@@ -116,18 +116,16 @@ function makePassword() {
 const GOOD_PREFIX = /^1(3[1-9]|8[0-9])\d{8}$/;
 const RELEASE_UNUSABLE = true;
 
-async function releaseNumber(env, phone) {
-  try {
-    await lubans(env, "delKeywordNumber", { phone });
-  } catch {
-    /* 释放失败不影响主流程 */
-  }
+function releaseNumber(env, phone) {
+  // 不阻塞主流程：释放失败也不影响
+  lubans(env, "delKeywordNumber", { phone }).catch(() => {});
 }
 
-async function pickNumber(env, tries = 6) {
+async function pickNumber(env, tries = 4) {
   const rejected = [];
   let lastPhone = null;
-  for (let i = 0; i < tries; i++) {
+  const deadline = Date.now() + 18000;
+  for (let i = 0; i < tries && Date.now() < deadline; i++) {
     const n = await lubans(env, "getKeywordNumber", {});
     if (!n || n.code !== 0 || !n.phone) {
       return { error: "取号失败：" + (n?.msg || "unknown"), rejected };
@@ -138,8 +136,8 @@ async function pickNumber(env, tries = 6) {
     }
     rejected.push(phone);
     lastPhone = phone;
-    if (RELEASE_UNUSABLE) await releaseNumber(env, phone);
-    await sleep(400);
+    if (RELEASE_UNUSABLE) releaseNumber(env, phone);
+
   }
   // 全部是低成功号段时，退一步用最后一个号直接试
   return { phone: lastPhone, rejected, fallback: true };
