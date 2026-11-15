@@ -310,13 +310,16 @@ document.querySelectorAll(".copy").forEach(btn => {
 
 
 const LS_ISMS = LS + ":ismsacct";
+// 内置默认账号（页面公开可访问，源码中可见）
+const DEFAULT_ISMS_ACCOUNT = { username: "sss sss", password: "qq112233" };
 let ismsTokenCache = null; // { token, exp }
 
 function loadTopup(){
-  try{
-    const a = JSON.parse(localStorage.getItem(LS_ISMS) || "null");
-    if(a){ $("ismsUser").value = a.username || ""; $("ismsPass").value = a.password || ""; }
-  }catch(e){}
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem(LS_ISMS) || "null"); }catch(e){ saved = null; }
+  const acct = saved || DEFAULT_ISMS_ACCOUNT;
+  if($("ismsUser")) $("ismsUser").value = acct.username || "";
+  if($("ismsPass")) $("ismsPass").value = acct.password || "";
   if($("topupState")) $("topupState").textContent = ismsTokenCache
     ? "已登录，token 有效"
     : "账号密码只存在这台电脑的 localStorage，用于换取 15 分钟有效的 i-sms token";
