@@ -14,6 +14,8 @@
 //   lubans getKeywordNumber → scorehub verification/send → lubans getKeywordSms
 //   → scorehub auth/login/code → config/name → members/me/password → config/guide-completed
 
+import { createRechargeOrder, getRechargeUrl } from "./isms-crypto.js";
+
 const SCOREHUB = "https://api.scorehub.cn/merchant";
 const LUBANS = "https://lubansms.com/v2/api/";
 const ISMS = "https://www.i-sms.app";
@@ -365,6 +367,20 @@ export default {
         }));
         return json({ probes: out }, 200, origin);
       }
+      if (url.pathname === "/api/isms-topup") {
+        const token = url.searchParams.get("token") || body?.token;
+        const amount = Number(url.searchParams.get("amount") || body?.amount || 5);
+        const methodId = Number(url.searchParams.get("methodId") || body?.methodId || 3);
+        if (!token) return json({ ok: false, error: "缺少 i-sms token" }, 200, origin);
+        try {
+          const order = await createRechargeOrder({ token, amount, methodId });
+          if (!order.ok) return json({ ok: false, error: order.error, detail: order.detail, dbg: order.dbg }, 200, origin);
+          const link = await getRechargeUrl({ token, orderId: order.orderId, aesKey: order.aesKey });
+          return json({ ok: link.ok, url: link.url, orderId: order.orderId, error: link.error, detail: link.detail, dbg: link.dbg }, 200, origin);
+        } catch (e) {
+          return json({ ok: false, error: String(e.message || e) }, 200, origin);
+        }
+      }
       if (url.pathname === "/api/balances") {
         const out = { lubans: null, isms: null };
         try {
@@ -406,7 +422,7 @@ export default {
         return json({ http: r.http, code: r.data?.code, desc: r.data?.description, hasToken: Boolean(r.data?.data?.accessToken) }, 200, origin);
       }
       if (url.pathname === "/api/health") {
-        return json({ ok: true, lubans: Boolean(env.LUBANS_APIKEY) }, 200, origin);
+        return json({ ok: true, v: "2026-11-15-topup", lubans: Boolean(env.LUBANS_APIKEY) }, 200, origin);
       }
       if (url.pathname === "/api/start" && request.method === "POST") {
         return await handleStart(env, origin, url.searchParams.get("provider") || "auto");

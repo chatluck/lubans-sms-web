@@ -68,3 +68,53 @@ Authorization: Bearer <JWT>
 ## 复现脚本
 
 `/tmp/isms_rev/`：`enc.wasm`、`crypto-wasm.js`、`app.0f464fda.js`、`pubkey.json`、`run2.cjs`、`sweep2.cjs`、`sweep3.cjs`、`enc.wat`
+
+## 2026-11-15 突破（Node 端已完全跑通）
+
+修正了三处运行时语义后，wasm 加密可以正常工作了：
+
+1. `__wbindgen_object_clone_ref` 必须 **返回同一个索引**（不是新建副本）
+2. `is_object / is_string / is_function / is_undefined` 必须 **真实判断**（用 0/1 常量会走进 getrandom 的环境探测失败分支）
+3. `__wbg_call_*` 必须真正调用函数
+4. 另外 `fingerprint` 必须是对象：`{user_agent_hash, timestamp, call_stack_depth, timezone_offset}`
+
+正确的请求载荷是：
+
+```json
+{"data": <业务数据>, "public_key": <PEM>, "fingerprint": {...}, "timestamp": <ms>}
+```
+
+wasm 返回：
+
+```json
+{"encrypted":"...","key":"<base64 32B AES key>","iv":"...","timestamp":...,"signature":"<64 hex>"}
+```
+
+然后要用 **RSA-OAEP(SHA-256)** 把 `key`（AES key 原文）加密替换：
+
+```js
+crypto.publicEncrypt({key, padding: RSA_PKCS1_OAEP_PADDING, oaepHash:"sha256"}, aesKey)
+```
+
+### 下单 + 取支付链接（Node 实测成功）
+
+```
+POST /api/user/recharge   body={encrypted,key,iv,timestamp,signature}
+  → 200，响应加密，AES-256-GCM(key, iv) 解出 {"success":true,"order_id":"26111516..."}
+
+GET /api/user/recharge-url?order_id=...  需头 X-Encryption-Key
+  X-Encryption-Key = RSA-OAEP(JSON{k:base64(32B 随机),t:Date.now(),h:sha256("/api/user/recharge-url?order_id=...")})
+  注意 h 用的是 **相对路径+query**
+  → 解出 {"success":true,"rechargeUrl":"https://pay.isms.pw/submit.php?..."}
+```
+
+脚本在 `scripts/isms-gen-body.cjs` 与 `scripts/isms-get-url.cjs`。
+
+### 仍未解决的差异
+
+同样的 wasm 在 **Cloudflare Worker/Pages Functions 里**生成的 `signature` 会被服务端判为无效（`ENC_VALIDATION_FAILED`），而 Node 里同样的流程成功。已验证：
+- Worker 生成的 body 用本地 Node 发送同样失败 → 是 body 内容差异，不是网络/头
+- key/encrypted/iv 长度与 Node 一致，且用 AES key 能本地解开、明文正确
+- 每次新建 wasm 实例（不复用）仍失败
+
+推测是 Workers 的 WebAssembly/JS 值语义与 Node 有细微差异，影响 wasm 内部签名计算。
