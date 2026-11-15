@@ -14,7 +14,7 @@
 //   lubans getKeywordNumber → scorehub verification/send → lubans getKeywordSms
 //   → scorehub auth/login/code → config/name → members/me/password → config/guide-completed
 
-import { createRechargeOrder, getRechargeUrl, debugEncrypt, debugRsa } from "./isms-crypto.js";
+import { createRechargeOrder, getRechargeUrl, debugEncrypt, debugRsa, login as ismsLogin } from "./isms-crypto.js";
 
 const SCOREHUB = "https://api.scorehub.cn/merchant";
 const LUBANS = "https://lubansms.com/v2/api/";
@@ -366,6 +366,17 @@ export default {
           return { http: r.http, code: r.data?.code };
         }));
         return json({ probes: out }, 200, origin);
+      }
+      if (url.pathname === "/api/isms-login") {
+        const username = url.searchParams.get("username") || body?.username;
+        const password = url.searchParams.get("password") || body?.password;
+        if (!username || !password) return json({ ok: false, error: "缺少账号或密码" }, 200, origin);
+        try {
+          const r = await ismsLogin({ username, password });
+          return json(r, 200, origin);
+        } catch (e) {
+          return json({ ok: false, error: String(e.message || e) }, 200, origin);
+        }
       }
       if (url.pathname === "/api/isms-rsa") {
         const r = await debugRsa({ pem: body?.pem, text: body?.text });

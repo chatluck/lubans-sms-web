@@ -134,7 +134,11 @@ Header: X-API-KEY
 
 ## 页面内充值（已打通，2026-11-15）
 
-页面新增「页面内充值（爱接码）」面板：填 i-sms token + 金额 + 支付方式 → 后端用 wasm 加密下单并返回 `pay.isms.pw` 支付链接，可复制或直接打开。
+页面新增「页面内充值（爱接码 · 自动登录）」面板：填 i-sms **账号密码** + 金额 + 支付方式 → 后端自动登录换 token → 用 wasm 加密下单 → 返回 `pay.isms.pw` 支付链接。
+
+- 账号密码只存在本机 `localStorage`（可用「保存账号」按钮），不落服务端
+- token 15 分钟有效，过期后前端自动重新登录，无需手动处理
+- 登录接口实测可用：错误密码返回「用户名或密码不正确。」；`/api/captcha-status` 显示 `captchaType: "none"`，当前无需验证码
 
 - 接口：`POST /api/isms-topup {token, amount, methodId}`
 - `methodId`：3 微信 / 7 微信备用 / 2 支付宝 / 8 支付宝备用 / 4 加密货币

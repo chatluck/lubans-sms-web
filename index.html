@@ -87,9 +87,11 @@
 
 
   <div class="card">
-    <h2>页面内充值（爱接码）</h2>
-    <label>i-sms 登录 token（浏览器登录 i-sms 后从 localStorage 的 accessToken 复制，仅存本机）</label>
-    <input id="ismsToken" type="password" placeholder="eyJhbGciOi..." autocomplete="off" />
+    <h2>页面内充值（爱接码 · 自动登录）</h2>
+    <div class="row">
+      <input id="ismsUser" placeholder="i-sms 账号（邮箱或用户名）" autocomplete="username" />
+      <input id="ismsPass" type="password" placeholder="i-sms 密码" autocomplete="current-password" />
+    </div>
     <div class="row" style="margin-top:12px">
       <input id="topupAmount" type="number" value="5" min="5" step="1" placeholder="金额" />
       <select id="topupMethod">
@@ -100,10 +102,10 @@
       </select>
     </div>
     <div class="actions">
-      <button id="topupGo">生成支付链接</button>
-      <button class="ghost" id="topupSave">保存 token</button>
+      <button id="topupGo">自动登录并生成支付链接</button>
+      <button class="ghost" id="topupSave">保存账号（本机）</button>
     </div>
-    <div class="hint" id="topupState">需要 i-sms 的登录 token 才能下单</div>
+    <div class="hint" id="topupState">账号密码只存在这台电脑的 localStorage，用于换取 15 分钟有效的 i-sms token</div>
     <div class="result" id="topupResult">
       <div class="row"><div><div class="k">支付链接</div><div class="v" id="topupUrl" style="font-size:12px;word-break:break-all">—</div></div></div>
       <div class="actions">
@@ -307,18 +309,41 @@ document.querySelectorAll(".copy").forEach(btn => {
 });
 
 
-const LS_ISMS = LS + ":ismstoken";
+const LS_ISMS = LS + ":ismsacct";
+let ismsTokenCache = null; // { token, exp }
+
 function loadTopup(){
-  const t = localStorage.getItem(LS_ISMS) || "";
-  if($("ismsToken")) $("ismsToken").value = t;
-  if($("topupState")) $("topupState").textContent = t ? "token 已保存（本机）" : "需要 i-sms 的登录 token 才能下单";
-}
-async function topup(){
-  const token = $("ismsToken").value.trim();
-  if(!token) { $("topupState").textContent = "先填 token"; return; }
-  $("topupGo").disabled = true;
-  $("topupState").textContent = "创建订单中…";
   try{
+    const a = JSON.parse(localStorage.getItem(LS_ISMS) || "null");
+    if(a){ $("ismsUser").value = a.username || ""; $("ismsPass").value = a.password || ""; }
+  }catch(e){}
+  if($("topupState")) $("topupState").textContent = ismsTokenCache
+    ? "已登录，token 有效"
+    : "账号密码只存在这台电脑的 localStorage，用于换取 15 分钟有效的 i-sms token";
+}
+
+async function ensureToken(){
+  if(ismsTokenCache && ismsTokenCache.exp && ismsTokenCache.exp - Date.now() > 60000) return ismsTokenCache.token;
+  const username = $("ismsUser").value.trim();
+  const password = $("ismsPass").value;
+  if(!username || !password) throw new Error("先填 i-sms 账号和密码");
+  $("topupState").textContent = "正在自动登录 i-sms…";
+  const r = await api("/api/isms-login", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ username, password })
+  });
+  if(!r.ok) throw new Error(r.error || "登录失败");
+  ismsTokenCache = { token: r.token, exp: r.exp || (Date.now() + 13*60*1000) };
+  return r.token;
+}
+
+async function topup(){
+  $("topupGo").disabled = true;
+  $("topupState").textContent = "准备中…";
+  try{
+    const token = await ensureToken();
+    $("topupState").textContent = "创建订单中…";
     const r = await api("/api/isms-topup", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
@@ -329,22 +354,26 @@ async function topup(){
       $("topupResult").classList.add("show");
       $("topupState").textContent = "订单 " + (r.orderId||"") + " 已创建，扫码支付后余额会自动刷新";
       watchTopup(ismsBalanceNumber());
+    } else if(/令牌|token|登录/i.test(r.error||"")){
+      ismsTokenCache = null;
+      $("topupState").textContent = "登录态失效：" + (r.error||"") + "，再点一次会自动重新登录";
     } else {
       $("topupState").textContent = "失败：" + (r.error || "未知错误");
     }
   }catch(e){
-    $("topupState").textContent = "错误：" + e.message;
+    $("topupState").textContent = String(e.message||e);
   }finally{
     $("topupGo").disabled = false;
   }
 }
+
 $("go").onclick = go;
 const br = $("balRefresh");
 if(br) br.onclick = refreshBalances;
 const ts = $("topupSave");
 if(ts) ts.onclick = () => {
-  localStorage.setItem(LS_ISMS, $("ismsToken").value.trim());
-  loadTopup();
+  localStorage.setItem(LS_ISMS, JSON.stringify({ username: $("ismsUser").value.trim(), password: $("ismsPass").value }));
+  $("topupState").textContent = "账号已保存到本机 localStorage";
 };
 const tg = $("topupGo");
 if(tg) tg.onclick = topup;

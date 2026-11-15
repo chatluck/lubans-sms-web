@@ -162,7 +162,7 @@ export async function debugEncrypt({ amount = 5, methodId = 3, timestamp, uaHash
   return { payload, pemLen: pem.length, outStr };
 }
 
-export async function createRechargeOrder({ token, amount, methodId = 3 }) {
+async function encryptPayload(dataObj) {
   const { ex: e, mem } = await getWasm();
   const pem = await getPubkey();
   const fingerprint = {
@@ -171,13 +171,7 @@ export async function createRechargeOrder({ token, amount, methodId = 3 }) {
     call_stack_depth: 5,
     timezone_offset: -480,
   };
-  const payload = JSON.stringify({
-    data: { amount: Number(amount), paymentMethodId: Number(methodId) },
-    public_key: pem,
-    fingerprint,
-    timestamp: Date.now(),
-  });
-
+  const payload = JSON.stringify({ data: dataObj, public_key: pem, fingerprint, timestamp: Date.now() });
   const rp = e.__wbindgen_add_to_stack_pointer(-16);
   const buf = new TextEncoder().encode(payload);
   const ptr = e.__wbindgen_export2(buf.length, 1);
@@ -187,59 +181,64 @@ export async function createRechargeOrder({ token, amount, methodId = 3 }) {
   const op = dv.getUint32(rp, true), ol = dv.getUint32(rp + 4, true);
   const outStr = new TextDecoder().decode(new Uint8Array(mem.buffer, op, ol));
   e.__wbindgen_add_to_stack_pointer(16);
-
-  let wasmOut;
-  try { wasmOut = JSON.parse(outStr); } catch (e) {
-    return { ok: false, error: "wasm 输出非 JSON(长度 " + outStr.length + ")", detail: outStr.slice(0, 120) };
-  }
-  if (!wasmOut.encrypted || !wasmOut.key) {
-    return { ok: false, error: "wasm 输出缺字段", detail: Object.keys(wasmOut) };
-  }
+  const wasmOut = JSON.parse(outStr);
+  if (!wasmOut.encrypted || !wasmOut.key) throw new Error("wasm 输出缺字段");
   const aesKey = b64ToBytes(wasmOut.key);
-  // 注意：要加密的是 AES key 的原始字节（base64 解码后），不是 base64 字符串本身
-  const encKey = bytesToB64(new Uint8Array(await (async () => {
-    const key = await crypto.subtle.importKey("spki", pemToDer(pem), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
-    return await crypto.subtle.encrypt({ name: "RSA-OAEP" }, key, aesKey);
-  })()));
-
+  const key = await crypto.subtle.importKey("spki", pemToDer(pem), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
+  const rsaEnc = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, key, aesKey);
   const body = {
     encrypted: wasmOut.encrypted,
-    key: encKey,
+    key: bytesToB64(new Uint8Array(rsaEnc)),
     iv: wasmOut.iv,
     timestamp: wasmOut.timestamp,
     signature: wasmOut.signature,
   };
+  return { body, aesKey };
+}
 
-  const bodyForDebug = JSON.stringify(body);
-  const res = await fetch(ISMS + "/api/user/recharge", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      Authorization: "Bearer " + token,
-      "User-Agent": UA,
-    },
-    body: JSON.stringify(body),
-  });
+async function encryptedPost({ path, data, token, extraHeaders }) {
+  const { body, aesKey } = await encryptPayload(data);
+  const headers = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    "User-Agent": UA,
+    ...(extraHeaders || {}),
+  };
+  if (token) headers.Authorization = "Bearer " + token;
+  const res = await fetch(ISMS + path, { method: "POST", headers, body: JSON.stringify(body) });
   const raw = await res.text();
   let parsed;
-  try { parsed = JSON.parse(raw); } catch { return { ok: false, error: "响应非 JSON: " + raw.slice(0, 120) }; }
-
-  if (!parsed.encrypted || !parsed.iv) {
-    return { ok: false, error: parsed.message || "下单响应未加密", detail: parsed, dbg: {
-      keyLen: body.key.length, encLen: body.encrypted.length, ivLen: body.iv.length,
-      sigLen: String(body.signature).length, wasmKeyLen: aesKey.length, payloadLen: payload.length,
-      fullBody: bodyForDebug,
-      aesKeyB64: bytesToB64(aesKey)
-    } };
-  }
+  try { parsed = JSON.parse(raw); } catch { throw new Error("响应非 JSON: " + raw.slice(0, 120)); }
+  if (!parsed.encrypted || !parsed.iv) return { plain: parsed, aesKey };
   const plain = await aesGcmDecrypt(parsed.encrypted, parsed.iv, aesKey);
-  if (!plain.success) {
-    return { ok: false, error: plain.message || "下单失败", detail: plain, dbg: {
-      keyLen: body.key.length, encLen: body.encrypted.length, ivLen: body.iv.length,
-      sigLen: String(body.signature).length, ts: body.timestamp, wasmKeyLen: aesKey.length
-    } };
+  return { plain, aesKey };
+}
+
+export async function login({ username, password }) {
+  const { plain } = await encryptedPost({
+    path: "/api/login",
+    data: { username, password, rememberMe: 1 },
+  });
+  if (!plain || plain.success === false) {
+    return { ok: false, error: (plain && (plain.message || plain.code)) || "登录失败" };
   }
+  const token = plain.accessToken || plain.token || (plain.data && plain.data.accessToken);
+  if (!token) return { ok: false, error: "登录响应缺少 token", detail: plain };
+  let exp = null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    exp = payload.exp ? payload.exp * 1000 : null;
+  } catch {}
+  return { ok: true, token, exp, user: plain.username || plain.user };
+}
+
+export async function createRechargeOrder({ token, amount, methodId = 3 }) {
+  const { plain, aesKey } = await encryptedPost({
+    path: "/api/user/recharge",
+    data: { amount: Number(amount), paymentMethodId: Number(methodId) },
+    token,
+  });
+  if (!plain.success) return { ok: false, error: plain.message || "下单失败", detail: plain };
   return { ok: true, orderId: plain.order_id, aesKey };
 }
 
