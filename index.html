@@ -85,6 +85,33 @@
     </div>
   </div>
 
+
+  <div class="card">
+    <h2>页面内充值（爱接码）</h2>
+    <label>i-sms 登录 token（浏览器登录 i-sms 后从 localStorage 的 accessToken 复制，仅存本机）</label>
+    <input id="ismsToken" type="password" placeholder="eyJhbGciOi..." autocomplete="off" />
+    <div class="row" style="margin-top:12px">
+      <input id="topupAmount" type="number" value="5" min="5" step="1" placeholder="金额" />
+      <select id="topupMethod">
+        <option value="3">微信充值</option>
+        <option value="7">微信充值（备用）</option>
+        <option value="2">支付宝充值</option>
+        <option value="8">支付宝充值（备用）</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button id="topupGo">生成支付链接</button>
+      <button class="ghost" id="topupSave">保存 token</button>
+    </div>
+    <div class="hint" id="topupState">需要 i-sms 的登录 token 才能下单</div>
+    <div class="result" id="topupResult">
+      <div class="row"><div><div class="k">支付链接</div><div class="v" id="topupUrl" style="font-size:12px;word-break:break-all">—</div></div></div>
+      <div class="actions">
+        <button id="topupOpen">打开支付页</button>
+        <button class="copy" id="topupCopy">复制链接</button>
+      </div>
+    </div>
+  </div>
   <div class="card">
     <h2>进度</h2>
     <div><span class="tag" id="state">待机</span></div>
@@ -279,9 +306,53 @@ document.querySelectorAll(".copy").forEach(btn => {
   };
 });
 
+
+const LS_ISMS = LS + ":ismstoken";
+function loadTopup(){
+  const t = localStorage.getItem(LS_ISMS) || "";
+  if($("ismsToken")) $("ismsToken").value = t;
+  if($("topupState")) $("topupState").textContent = t ? "token 已保存（本机）" : "需要 i-sms 的登录 token 才能下单";
+}
+async function topup(){
+  const token = $("ismsToken").value.trim();
+  if(!token) { $("topupState").textContent = "先填 token"; return; }
+  $("topupGo").disabled = true;
+  $("topupState").textContent = "创建订单中…";
+  try{
+    const r = await api("/api/isms-topup", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({token, amount: Number($("topupAmount").value||5), methodId: Number($("topupMethod").value||3)})
+    });
+    if(r.ok && r.url){
+      $("topupUrl").textContent = r.url;
+      $("topupResult").classList.add("show");
+      $("topupState").textContent = "订单 " + (r.orderId||"") + " 已创建，扫码支付后余额会自动刷新";
+      watchTopup(ismsBalanceNumber());
+    } else {
+      $("topupState").textContent = "失败：" + (r.error || "未知错误");
+    }
+  }catch(e){
+    $("topupState").textContent = "错误：" + e.message;
+  }finally{
+    $("topupGo").disabled = false;
+  }
+}
 $("go").onclick = go;
 const br = $("balRefresh");
 if(br) br.onclick = refreshBalances;
+const ts = $("topupSave");
+if(ts) ts.onclick = () => {
+  localStorage.setItem(LS_ISMS, $("ismsToken").value.trim());
+  loadTopup();
+};
+const tg = $("topupGo");
+if(tg) tg.onclick = topup;
+const to = $("topupOpen");
+if(to) to.onclick = () => { const u = $("topupUrl").textContent; if(u && u !== "—") window.open(u, "_blank", "noopener"); };
+const tc = $("topupCopy");
+if(tc) tc.onclick = async () => { try { await navigator.clipboard.writeText($("topupUrl").textContent); tc.textContent="已复制"; setTimeout(()=>tc.textContent="复制链接",1200);}catch{} };
+loadTopup();
 const bt = $("balTopup");
 if(bt) bt.onclick = () => {
   const before = ismsBalanceNumber();

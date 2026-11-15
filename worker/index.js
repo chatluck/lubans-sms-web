@@ -14,7 +14,7 @@
 //   lubans getKeywordNumber → scorehub verification/send → lubans getKeywordSms
 //   → scorehub auth/login/code → config/name → members/me/password → config/guide-completed
 
-import { createRechargeOrder, getRechargeUrl } from "./isms-crypto.js";
+import { createRechargeOrder, getRechargeUrl, debugEncrypt, debugRsa } from "./isms-crypto.js";
 
 const SCOREHUB = "https://api.scorehub.cn/merchant";
 const LUBANS = "https://lubansms.com/v2/api/";
@@ -366,6 +366,17 @@ export default {
           return { http: r.http, code: r.data?.code };
         }));
         return json({ probes: out }, 200, origin);
+      }
+      if (url.pathname === "/api/isms-rsa") {
+        const r = await debugRsa({ pem: body?.pem, text: body?.text });
+        return json({ b64: r }, 200, origin);
+      }
+      if (url.pathname === "/api/isms-debug") {
+        const amount = Number(url.searchParams.get("amount") || 5);
+        const timestamp = Number(url.searchParams.get("ts") || 0) || undefined;
+        const uaHash = url.searchParams.get("ua") || undefined;
+        const r = await debugEncrypt({ amount, methodId: 3, timestamp, uaHash });
+        return json({ payloadLen: r.payload.length, pemLen: r.pemLen, payload: r.payload, out: r.outStr }, 200, origin);
       }
       if (url.pathname === "/api/isms-topup") {
         const token = url.searchParams.get("token") || body?.token;

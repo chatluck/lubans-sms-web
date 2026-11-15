@@ -130,6 +130,38 @@ async function aesGcmDecrypt(b64Data, b64Iv, keyBytes) {
 
 // ---- 对外能力 ----
 
+export async function debugRsa({ pem, text }) {
+  return await rsaOaepEncrypt(text, pem);
+}
+
+export async function debugEncrypt({ amount = 5, methodId = 3, timestamp, uaHash }) {
+  const { ex: e, mem } = await getWasm();
+  const pem = await getPubkey();
+  const ts = timestamp || Date.now();
+  const fingerprint = {
+    user_agent_hash: uaHash || hex(crypto.getRandomValues(new Uint8Array(32))),
+    timestamp: ts,
+    call_stack_depth: 5,
+    timezone_offset: -480,
+  };
+  const payload = JSON.stringify({
+    data: { amount: Number(amount), paymentMethodId: Number(methodId) },
+    public_key: pem,
+    fingerprint,
+    timestamp: ts,
+  });
+  const rp = e.__wbindgen_add_to_stack_pointer(-16);
+  const buf = new TextEncoder().encode(payload);
+  const ptr = e.__wbindgen_export2(buf.length, 1);
+  new Uint8Array(mem.buffer, ptr, buf.length).set(buf);
+  e.encrypt_data_main(rp, ptr, buf.length);
+  const dv = new DataView(mem.buffer);
+  const op = dv.getUint32(rp, true), ol = dv.getUint32(rp + 4, true);
+  const outStr = new TextDecoder().decode(new Uint8Array(mem.buffer, op, ol));
+  e.__wbindgen_add_to_stack_pointer(16);
+  return { payload, pemLen: pem.length, outStr };
+}
+
 export async function createRechargeOrder({ token, amount, methodId = 3 }) {
   const { ex: e, mem } = await getWasm();
   const pem = await getPubkey();
@@ -164,7 +196,11 @@ export async function createRechargeOrder({ token, amount, methodId = 3 }) {
     return { ok: false, error: "wasm 输出缺字段", detail: Object.keys(wasmOut) };
   }
   const aesKey = b64ToBytes(wasmOut.key);
-  const encKey = await rsaOaepEncrypt(wasmOut.key, pem);
+  // 注意：要加密的是 AES key 的原始字节（base64 解码后），不是 base64 字符串本身
+  const encKey = bytesToB64(new Uint8Array(await (async () => {
+    const key = await crypto.subtle.importKey("spki", pemToDer(pem), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
+    return await crypto.subtle.encrypt({ name: "RSA-OAEP" }, key, aesKey);
+  })()));
 
   const body = {
     encrypted: wasmOut.encrypted,

@@ -118,3 +118,26 @@ GET /api/user/recharge-url?order_id=...  需头 X-Encryption-Key
 - 每次新建 wasm 实例（不复用）仍失败
 
 推测是 Workers 的 WebAssembly/JS 值语义与 Node 有细微差异，影响 wasm 内部签名计算。
+
+## 最终突破（2026-11-15）
+
+根因是三处，逐个修完即通：
+
+1. **wasm 运行时语义**：`object_clone_ref` 返回同索引、`is_*` 真实判断、`call` 真正调用
+2. **指纹是对象**：`fingerprint = {user_agent_hash, timestamp, call_stack_depth, timezone_offset}`
+3. **RSA 加密的对象错了**：要对 **AES key 的原始 32 字节**做 RSA-OAEP，不能对 base64 字符串加密（这是 Worker 一直 `ENC_VALIDATION_FAILED` 的真因）
+
+验证：用固定 payload 对比 Node 与 Cloudflare Worker 的 wasm 输出，`encrypted/key/iv/timestamp/signature` **逐字段一致**；再用本地生成的 RSA 密钥对验证 Worker 的 RSA 加密可被私钥正确解出。
+
+### 实测（Pages Functions）
+
+```
+POST https://scorehub-autoreg.pages.dev/api/isms-topup
+{"token":"<i-sms accessToken>","amount":5,"methodId":3}
+→ {"ok":true,"url":"https://pay.isms.pw/submit.php?money=5.00&...&type=wxpay&sign=...","orderId":"261115170220d1f388a1"}
+```
+
+### 限制
+
+- i-sms 的 accessToken 是 JWT，有效期 **15 分钟**，过期需重新从浏览器复制
+- 自动登录不可行：`POST /api/login` 需要 geetest/点选验证码（`captchaVerifiedToken` / `captchaPassToken`）

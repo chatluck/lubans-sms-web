@@ -131,3 +131,12 @@ Header: X-API-KEY
 - 无法内嵌/代下单的原因（实测）：
   - 官方页 `X-Frame-Options: SAMEORIGIN`、`CSP: frame-ancestors 'self'`，iframe 会被浏览器拒绝。
   - 充值接口要求 **WASM 请求加密 + `X-Encryption-Key` 签名头**（前端 bundle 里有 `encryptRequestWasm` / `RSA-OAEP` / `aesKey` / `nonce`，缺签名返回 `ENC_VALIDATION_FAILED`），且必须网页登录态而非 API Key。因此即使把网页 token 交给后端，也无法构造出合法密文请求。
+
+## 页面内充值（已打通，2026-11-15）
+
+页面新增「页面内充值（爱接码）」面板：填 i-sms token + 金额 + 支付方式 → 后端用 wasm 加密下单并返回 `pay.isms.pw` 支付链接，可复制或直接打开。
+
+- 接口：`POST /api/isms-topup {token, amount, methodId}`
+- `methodId`：3 微信 / 7 微信备用 / 2 支付宝 / 8 支付宝备用 / 4 加密货币
+- token 有效期 15 分钟，过期需从 i-sms 浏览器 localStorage 的 `accessToken` 重新复制
+- 实现细节与逆向过程见 `docs/isms-crypto-re.md`
