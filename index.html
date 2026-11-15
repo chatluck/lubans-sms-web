@@ -88,7 +88,11 @@
 
   <div class="card">
     <h2>页面内充值（爱接码 · 自动登录）</h2>
-    <div class="row">
+    <div class="hint" style="margin:0 0 10px">
+      已内置账号 <b>sss sss</b>
+      <span style="margin-left:8px"><a href="javascript:void(0)" id="acctToggle" style="color:var(--accent)">修改账号</a></span>
+    </div>
+    <div class="row" id="acctRow" style="display:none">
       <input id="ismsUser" placeholder="i-sms 账号（邮箱或用户名）" autocomplete="username" />
       <input id="ismsPass" type="password" placeholder="i-sms 密码" autocomplete="current-password" />
     </div>
@@ -373,6 +377,11 @@ async function topup(){
 $("go").onclick = go;
 const br = $("balRefresh");
 if(br) br.onclick = refreshBalances;
+const at = $("acctToggle");
+if(at) at.onclick = () => {
+  const row = $("acctRow");
+  row.style.display = row.style.display === "none" ? "flex" : "none";
+};
 const ts = $("topupSave");
 if(ts) ts.onclick = () => {
   localStorage.setItem(LS_ISMS, JSON.stringify({ username: $("ismsUser").value.trim(), password: $("ismsPass").value }));
